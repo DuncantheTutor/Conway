@@ -1,0 +1,113 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import time
+import sys
+
+class State(object):
+
+    def __init__ (self):
+        n = 100
+        type = str(sys.argv[1])
+        self.dimensions = n
+        self.array = np.zeros((self.dimensions, self.dimensions))
+        self.oldArray = np.zeros((self.dimensions, self.dimensions))
+        self.CoMArray = np.array((0,0))
+        if type == 'P':
+            fileIn = sys.argv[2]
+            file = open(fileIn, "r")
+            self.statesPreset(file)
+        else:
+            self.statesRandom()
+        self.animate()
+
+    def statesRandom(self):
+        for i in range (0,self.dimensions):
+            for j in range (0, self.dimensions):
+                if np.random.random_sample()>=0.5:
+                    self.array[i,j] = 1
+                    self.oldArray[i,j] = 1
+
+    def splits(self, aString):
+        aFloat = aString.split('\n')[0]
+        return aFloat
+
+    def statesPreset(self, inFile):
+        data = inFile.readlines()
+        data = [self.splits(x) for x in data]
+        for i in range(len(data)):
+            newList = data[i]
+            for j in range(len(newList)):
+                element = newList[j]
+                if element == 'O':
+                    self.array[(i)%self.dimensions,(j)%self.dimensions] = 1
+                    self.oldArray[(i)%self.dimensions,(j)%self.dimensions] = 1
+
+    def dynamics(self):
+        for i, row in enumerate(self.oldArray):
+            for j, cellState in enumerate(row):
+                selfState = self.neighbours(i,j)
+                if int(cellState) == 1:
+                    if selfState in [2,3]:
+                        self.array[i,j] = 1
+                    else:
+                        self.array[i,j] = 0
+                else:
+                    if selfState == 3:
+                        self.array[i,j] = 1
+                    else:
+                        self.array[i,j] = 0
+        self.array, self.oldArray = self.oldArray, self.array
+
+    def neighbours(self,i,j):
+        neighbourSum = 0
+        neighbourSum += self.oldArray[(i-1)%(self.dimensions),j]
+        neighbourSum += self.oldArray[(i+1)%(self.dimensions),j]
+        neighbourSum += self.oldArray[i,(j-1)%(self.dimensions)]
+        neighbourSum += self.oldArray[i,(j+1)%(self.dimensions)]
+        neighbourSum += self.oldArray[(i-1)%(self.dimensions),(j-1)%(self.dimensions)]
+        neighbourSum += self.oldArray[(i+1)%(self.dimensions),(j+1)%(self.dimensions)]
+        neighbourSum += self.oldArray[(i+1)%(self.dimensions),(j-1)%(self.dimensions)]
+        neighbourSum += self.oldArray[(i-1)%(self.dimensions),(j+1)%(self.dimensions)]
+        return int(neighbourSum)
+
+    def update(self, *args):
+        self.dynamics()
+        self.CoMArray = np.vstack((self.CoMArray,self.CoM()))
+        self.image = plt.imshow(self.array)
+        return self.image,
+
+    '''
+    def updateNo(self):
+        t = time.time()
+        for i in range(10000):
+            if i%100 == 0:
+                print(i/(time.time()-t))
+            self.dynamics()
+    '''
+
+    def CoM(self):
+        pos = np.array((0,0))
+        liveSum = 0
+        xList = []
+        yList = []
+        for i in range(self.dimensions):
+            for j in range(self.dimensions):
+                if int(self.array[i,j]) == 1:
+                    liveSum += 1
+                    xList.append(i)
+                    yList.append(j)
+        pos[0] = np.sum(xList)/liveSum
+        pos[1] = np.sum(yList)/liveSum
+        return pos
+
+    #def avgSpeed(self):
+        #del self.CoMArray[0]
+
+
+    def animate(self):
+        self.fig, self.ax = plt.subplots()
+        self.ani = FuncAnimation(self.fig, self.update, interval = 1, blit = True)
+        plt.show()
+
+gameState = State()
